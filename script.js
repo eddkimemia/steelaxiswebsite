@@ -123,6 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const startAutoSlide = () => {
+            stopAutoSlide();
             autoSlideInterval = setInterval(() => {
                 currentSlide = (currentSlide === slides.length - 1) ? 0 : currentSlide + 1;
                 updateSlider();
@@ -130,14 +131,13 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const stopAutoSlide = () => {
-            clearInterval(autoSlideInterval);
+            if (autoSlideInterval) clearInterval(autoSlideInterval);
         };
 
         prevButton?.addEventListener('click', () => {
             if (currentSlide > 0) {
                 currentSlide--;
                 updateSlider();
-                stopAutoSlide();
                 startAutoSlide();
             }
         });
@@ -146,7 +146,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (currentSlide < slides.length - 1) {
                 currentSlide++;
                 updateSlider();
-                stopAutoSlide();
                 startAutoSlide();
             }
         });
@@ -155,7 +154,6 @@ document.addEventListener('DOMContentLoaded', () => {
             dot.addEventListener('click', () => {
                 currentSlide = index;
                 updateSlider();
-                stopAutoSlide();
                 startAutoSlide();
             });
         });
@@ -221,87 +219,124 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-        document.querySelectorAll('.nav-mobile-toggle').forEach(button => {
-            button.addEventListener('click', () => {
-                const expanded = button.getAttribute('aria-expanded') === 'true';
-                button.setAttribute('aria-expanded', !expanded);
+    document.querySelectorAll('.nav-mobile-toggle').forEach(button => {
+        button.addEventListener('click', () => {
+            const expanded = button.getAttribute('aria-expanded') === 'true';
+            button.setAttribute('aria-expanded', !expanded);
+        });
+    });
+
+    // Message Modal
+    const messageButton = document.getElementById('message-button');
+    const messageModal = document.getElementById('message-modal');
+    const closeModal = document.getElementById('close-modal');
+    const messageForm = document.getElementById('message-form');
+
+    if (messageButton && messageModal && closeModal) {
+        messageButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            messageModal.classList.remove('hidden');
+            messageModal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+            messageForm.querySelector('#message-name').focus();
+        });
+
+        const closeFunc = () => {
+            messageModal.classList.add('hidden');
+            messageModal.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+        };
+
+        closeModal.addEventListener('click', closeFunc);
+
+        // Close modal on Esc key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !messageModal.classList.contains('hidden')) {
+                closeFunc();
+            }
+        });
+
+        // Close modal on outside click
+        messageModal.addEventListener('click', (e) => {
+            if (e.target === messageModal) {
+                closeFunc();
+            }
+        });
+    }
+
+    if (messageForm) {
+        messageForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const feedback = document.getElementById('message-feedback');
+            feedback.textContent = '';
+            feedback.classList.remove('error', 'success');
+
+            try {
+                const recaptchaToken = await grecaptcha.execute('your-recaptcha-site-key', { action: 'contact' });
+                const formData = {
+                    name: messageForm.querySelector('#message-name').value,
+                    phone: messageForm.querySelector('#message-phone').value,
+                    email: messageForm.querySelector('#message-email').value,
+                    message: messageForm.querySelector('#message-text').value,
+                    recaptchaToken,
+                };
+
+                const response = await fetch('http://localhost:3000/api/contact', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData),
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    feedback.textContent = data.message;
+                    feedback.classList.add('success');
+                    messageForm.reset();
+                    setTimeout(() => messageModal.classList.add('hidden'), 2000);
+                } else {
+                    feedback.textContent = data.error || 'Failed to send message';
+                    feedback.classList.add('error');
+                }
+            } catch (error) {
+                feedback.textContent = 'An error occurred. Please try again.';
+                feedback.classList.add('error');
+            }
+        });
+    }
+
+    // Gallery Lightbox
+    const galleryItems = document.querySelectorAll('.gallery.projects-section .project-card img');
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImage = document.getElementById('lightbox-image');
+    const lightboxTitle = document.getElementById('lightbox-title');
+    const lightboxClose = document.querySelector('.lightbox-close');
+
+    if (galleryItems.length > 0 && lightbox && lightboxImage) {
+        galleryItems.forEach(item => {
+            item.style.cursor = 'pointer';
+            item.addEventListener('click', () => {
+                lightboxImage.src = item.src;
+                lightboxImage.alt = item.alt;
+                if (lightboxTitle) lightboxTitle.textContent = item.alt;
+                lightbox.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
             });
         });
 
-// Message Modal
-const messageButton = document.getElementById('message-button');
-const messageModal = document.getElementById('message-modal');
-const closeModal = document.getElementById('close-modal');
-const messageForm = document.getElementById('message-form');
+        const closeLightbox = () => {
+            lightbox.classList.add('hidden');
+            document.body.style.overflow = '';
+        };
 
-if (messageButton && messageModal && closeModal) {
-    messageButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        messageModal.classList.remove('hidden');
-        messageModal.setAttribute('aria-hidden', 'false');
-        document.body.style.overflow = 'hidden';
-        messageForm.querySelector('#message-name').focus();
-    });
+        lightboxClose?.addEventListener('click', closeLightbox);
+        lightbox.addEventListener('click', (e) => {
+            if (e.target === lightbox) closeLightbox();
+        });
 
-    closeModal.addEventListener('click', () => {
-        messageModal.classList.add('hidden');
-        messageModal.setAttribute('aria-hidden', 'true');
-        document.body.style.overflow = '';
-    });
-
-    // Close modal on Esc key
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !messageModal.classList.contains('hidden')) {
-            closeModal.click();
-        }
-    });
-
-    // Close modal on outside click
-    messageModal.addEventListener('click', (e) => {
-        if (e.target === messageModal) {
-            closeModal.click();
-        }
-    });
-}
-
-if (messageForm) {
-    messageForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const feedback = document.getElementById('message-feedback');
-        feedback.textContent = '';
-        feedback.classList.remove('error', 'success');
-
-        try {
-            const recaptchaToken = await grecaptcha.execute('your-recaptcha-site-key', { action: 'contact' });
-            const formData = {
-                name: messageForm.querySelector('#message-name').value,
-                phone: messageForm.querySelector('#message-phone').value,
-                email: messageForm.querySelector('#message-email').value,
-                message: messageForm.querySelector('#message-text').value,
-                recaptchaToken,
-            };
-
-            const response = await fetch('http://localhost:3000/api/contact', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
-            });
-
-            const data = await response.json();
-            if (response.ok) {
-                feedback.textContent = data.message;
-                feedback.classList.add('success');
-                messageForm.reset();
-                setTimeout(() => closeModal.click(), 2000); // Auto-close after 2s
-            } else {
-                feedback.textContent = data.error || 'Failed to send message';
-                feedback.classList.add('error');
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !lightbox.classList.contains('hidden')) {
+                closeLightbox();
             }
-        } catch (error) {
-            feedback.textContent = 'An error occurred. Please try again.';
-            feedback.classList.add('error');
-        }
-    });
-}
-
+        });
+    }
 });
